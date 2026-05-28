@@ -247,7 +247,7 @@ function PlaceholderBg() {
 // ─────────────────────────────────────────────────────────────
 //  POSTER
 // ─────────────────────────────────────────────────────────────
-function PosterView({form,bgImage,settings,scale=1}) {
+function PosterView({form,bgImage,settings,scale=1,noBg=false}) {
   const FONT=getFontCss(settings.posterFont);
   const spTop=settings.spacingTop, spBottom=settings.spacingBottom;
   const {int,dec}=splitPrice(form.preis);
@@ -261,7 +261,7 @@ function PosterView({form,bgImage,settings,scale=1}) {
   useEffect(()=>setBgOk(true),[bgImage]);
   return(
     <div style={{width:POSTER_W,height:POSTER_H,position:"relative",overflow:"hidden",transformOrigin:"top left",transform:`scale(${scale})`,flexShrink:0,boxShadow:scale<1?"0 4px 24px rgba(0,0,0,.18),0 1px 4px rgba(0,0,0,.10)":"none",background:"#fff"}}>
-      {bgImage&&bgOk?<img src={bgImage} alt="" onError={()=>setBgOk(false)} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}/>:<PlaceholderBg/>}
+      {!noBg&&(bgImage&&bgOk?<img src={bgImage} alt="" onError={()=>setBgOk(false)} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}/>:<PlaceholderBg/>)}
       {form.mode==="laden"
         ?<LadenContent form={form} FONT={FONT} spTop={spTop} spBottom={spBottom} showBC={showBC} bcBottom={bcBottom}/>
         :<OGContent    form={form} FONT={FONT} spTop={spTop} spBottom={spBottom} showBC={showBC} bcBottom={bcBottom}/>
@@ -911,9 +911,9 @@ export default function PlakaApp() {
 
       <SettingsDrawer open={settingsOpen} onClose={()=>setSettingsOpen(false)} settings={settings} setSettings={setSettings} images={images} saveVD={saveVD} removeVD={removeVD}/>
 
-      {/* Print layer — always rendered, off-screen on screen, full-size on print */}
+      {/* Print layer — no background (template is on physical paper), off-screen on screen */}
       <div id="plaka-print-layer">
-        <PosterView form={form} bgImage={activeBgImage} settings={settings} scale={1}/>
+        <PosterView form={form} bgImage={null} settings={settings} scale={1} noBg={true}/>
       </div>
 
       <style>{`
@@ -931,8 +931,8 @@ export default function PlakaApp() {
         #plaka-print-layer{position:fixed;top:0;left:-9999px;width:794px;height:1123px;pointer-events:none;z-index:-1;}
         @media print{
           @page{size:A4 portrait;margin:0;}
-          body{visibility:hidden;}
-          #plaka-print-layer{visibility:visible;left:0;width:210mm;height:297mm;overflow:hidden;}
+          html,body{height:297mm;max-height:297mm;overflow:hidden;visibility:hidden;}
+          #plaka-print-layer{visibility:visible;left:0 !important;width:210mm;height:297mm;overflow:hidden;background:#fff;}
         }
       `}</style>
     </div>
