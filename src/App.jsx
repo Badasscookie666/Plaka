@@ -25,7 +25,7 @@ const DEFAULT_SETTINGS = { posterFont:"barlow", spacingTop:50, spacingBottom:64,
 
 const DEFAULT_LADEN = {
   mode:"laden", hersteller:"Desperados", produkt:"Tropical Daiquiri",
-  produktGroesse:"0.33", angabe:"L", info:"", menge:"24", gebinde:"Dose",
+  produktGroesse:"0.33", angabe:"L", info:"", menge:"24", gebinde:"Je 24×Dose",
   mehrwegStatus:"mehrweg", pfand:"", preis:"45.99", showBarcode:false, artikelNr:"",
 };
 const DEFAULT_OG = {
@@ -211,9 +211,9 @@ const fmtDE      = (n,d=2) => isNaN(n)?"0":n.toFixed(d).replace(".",",");
 const getFontCss = id => FONT_OPTIONS.find(f=>f.id===id)?.css??FONT_OPTIONS[0].css;
 const splitPrice = s => { const n=parseFloat(String(s).replace(",",".")); if(isNaN(n)) return{int:"–",dec:"–"}; const[i,d="00"]=n.toFixed(2).split("."); return{int:i,dec:d}; };
 function buildLadenData(form) {
-  const menge=Math.max(1,Math.round(toNum(form.menge))), gr=toNum(form.produktGroesse), pr=toNum(form.preis);
-  const gebindeBox=`Je ${menge}\u00D7${form.gebinde}`;
-  const ppe=(menge*gr>0&&pr>0)?`${fmtDE(pr/(menge*gr))}€/${form.angabe}`:"";
+  const menge=toNum(form.menge), gr=toNum(form.produktGroesse), pr=toNum(form.preis);
+  const gebindeBox=form.gebinde;
+  const ppe=(menge>0&&gr>0&&pr>0)?`${fmtDE(pr/(menge*gr))}€/${form.angabe}`:"";
   return{gebindeBox,ppe};
 }
 function buildOGData(form) {
@@ -251,8 +251,12 @@ function PosterView({form,bgImage,settings,scale=1}) {
   const FONT=getFontCss(settings.posterFont);
   const spTop=settings.spacingTop, spBottom=settings.spacingBottom;
   const {int,dec}=splitPrice(form.preis);
+  const intDigits=int.replace(/[^0-9]/g,"").length||2;
+  const intFs=Math.max(100,Math.min(210,230-Math.max(0,intDigits-1)*30));
+  const decFs=Math.round(intFs*0.60);
+  const decMb=Math.round(intFs*0.11);
   const showBC=form.showBarcode&&form.artikelNr;
-  const bcBottom=spBottom+182;
+  const bcBottom=spBottom+Math.round(intFs*1.08)+24;
   const [bgOk,setBgOk]=useState(true);
   useEffect(()=>setBgOk(true),[bgImage]);
   return(
@@ -272,8 +276,8 @@ function PosterView({form,bgImage,settings,scale=1}) {
       )}
       {form.preis&&(
         <div style={{position:"absolute",bottom:spBottom,left:0,right:0,display:"flex",justifyContent:"center",alignItems:"flex-end",fontFamily:FONT,fontWeight:900,color:"#0f0f0f",lineHeight:1}}>
-          <span style={{fontSize:158}}>{int},</span>
-          <span style={{fontSize:98,marginBottom:18,letterSpacing:1}}>{dec}€</span>
+          <span style={{fontSize:intFs}}>{int},</span>
+          <span style={{fontSize:decFs,marginBottom:decMb,letterSpacing:1}}>{dec}€</span>
         </div>
       )}
     </div>
@@ -308,57 +312,101 @@ function OGContent({form,FONT,spTop,spBottom,showBC,bcBottom}) {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  PRINT
+//  CRC32 / ZIP / DOCX
 // ─────────────────────────────────────────────────────────────
-function doPrint(form,bgImageRaw,settings) {
-  const bgImage=bgImageRaw;
-  const FONT=getFontCss(settings.posterFont), spTop=settings.spacingTop, spBottom=settings.spacingBottom;
-  const{int,dec}=splitPrice(form.preis);
-  const bgStyle=bgImage?`background-image:url('${bgImage}');background-size:cover;background-position:center;`:"";
-  const fOpt=FONT_OPTIONS.find(f=>f.id===settings.posterFont);
-  const fontImport=fOpt?.gf?`@import url('https://fonts.googleapis.com/css2?family=${fOpt.gf}&display=swap');`:"";
-  const showBC=form.showBarcode&&form.artikelNr;
-  const bcBottom=spBottom+182, contentBottom=showBC?bcBottom+56:spBottom+170;
-  const placeholderHTML=bgImage?"":
-    `<div id="bg"><div class="ts"><div class="ci"></div><span>MEIN MARKT</span></div><div class="bs"><span>TÄGLICH FRISCH · TÄGLICH GUT · WWW.MEIN-MARKT.DE</span></div><div class="wm">VORDRUCK</div></div>`;
-  let bcBlock="";
-  if(showBC){const bc=renderC39(form.artikelNr,{barHeight:28,quietZone:6}); if(bc){const clean=form.artikelNr.toUpperCase().replace(/[^0-9A-Z\-\. \$\/\+\%]/g,''); bcBlock=`<div id="bc">${bc.svg}<div class="bc-nr">${clean}</div></div>`;}}
-  let contentHTML="";
-  if(form.mode==="laden"){
-    const{gebindeBox,ppe}=buildLadenData(form); const hasMW=form.mehrwegStatus==="mehrweg",hasEW=form.mehrwegStatus==="einweg";
-    contentHTML=`${form.hersteller?`<div class="h1">${form.hersteller}</div>`:""}${form.produkt?`<div class="h2">${form.produkt}</div>`:""}${form.info?`<div class="info">${form.info}</div>`:""}
-    <div class="gbox">${gebindeBox}</div>${ppe?`<div class="ppe">${ppe}</div>`:""}${hasMW||hasEW?`<div class="mw">${hasMW?"MEHRWEG":"EINWEG"}</div>`:""}${form.pfand?`<div class="pf">zzgl. ${form.pfand} Pfand</div>`:""}`;
-  } else {
-    const{infoBox}=buildOGData(form);
-    contentHTML=`${form.produkt?`<div class="og1">${form.produkt}</div>`:""}${form.herkunft?`<div class="og2">${form.herkunft}</div>`:""}${`<div class="gbox og3">${infoBox}</div>`}`;
+function crc32(buf){
+  if(!crc32._T){const T=new Uint32Array(256);for(let i=0;i<256;i++){let c=i;for(let j=0;j<8;j++)c=c&1?0xEDB88320^(c>>>1):c>>>1;T[i]=c;}crc32._T=T;}
+  const T=crc32._T;let crc=0xFFFFFFFF;
+  for(let i=0;i<buf.length;i++)crc=T[(crc^buf[i])&0xFF]^(crc>>>8);
+  return(crc^0xFFFFFFFF)>>>0;
+}
+function buildZip(files){
+  const enc=new TextEncoder();const parts=[];const cds=[];let offset=0;
+  for(const{name,data}of files){
+    const nb=enc.encode(name);
+    const db=typeof data==="string"?enc.encode(data):data;
+    const crc=crc32(db);
+    const lh=new Uint8Array(30+nb.length);const lv=new DataView(lh.buffer);
+    lv.setUint32(0,0x04034b50,true);lv.setUint16(4,20,true);
+    lv.setUint32(14,crc,true);lv.setUint32(18,db.length,true);lv.setUint32(22,db.length,true);
+    lv.setUint16(26,nb.length,true);lh.set(nb,30);
+    const cd=new Uint8Array(46+nb.length);const cv=new DataView(cd.buffer);
+    cv.setUint32(0,0x02014b50,true);cv.setUint16(4,0x0314,true);cv.setUint16(6,20,true);
+    cv.setUint32(16,crc,true);cv.setUint32(20,db.length,true);cv.setUint32(24,db.length,true);
+    cv.setUint16(28,nb.length,true);cv.setUint32(42,offset,true);cd.set(nb,46);
+    parts.push(lh,db);cds.push(cd);offset+=lh.length+db.length;
   }
-  const html=`<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>Preisplakat</title>
-<style>${fontImport}
-@page{size:A4 portrait;margin:0;}
-*{margin:0;padding:0;box-sizing:border-box;}
-html{width:210mm;height:297mm;}
-body{position:relative;width:210mm;height:297mm;overflow:hidden;background:#fff;${bgStyle}font-family:${FONT};}
-#bg{position:absolute;inset:0;background:#fff;}.ts{position:absolute;top:0;left:0;right:0;height:58px;background:linear-gradient(90deg,#c8001a,#a00015);display:flex;align-items:center;justify-content:center;gap:16px;}
-.ci{width:28px;height:28px;border-radius:50%;border:2.5px solid rgba(255,255,255,.45);}.ts span{color:rgba(255,255,255,.45);font-size:20px;font-weight:800;letter-spacing:8px;}
-.bs{position:absolute;bottom:0;left:0;right:0;height:44px;background:linear-gradient(90deg,#c8001a,#a00015);display:flex;align-items:center;justify-content:center;}
-.bs span{color:rgba(255,255,255,.35);font-size:11px;letter-spacing:3px;font-weight:600;}.wm{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:88px;font-weight:900;color:#000;opacity:.022;transform:rotate(-28deg);letter-spacing:14px;}
-#ct{position:absolute;top:72px;left:0;right:0;bottom:${contentBottom}px;display:flex;flex-direction:column;align-items:center;text-align:center;padding-top:${spTop}px;padding-left:24px;padding-right:24px;overflow:hidden;}
-.h1{font-size:102px;font-weight:900;line-height:.95;color:#0f0f0f;letter-spacing:-1px;}.h2{font-size:86px;font-weight:900;line-height:1;color:#0f0f0f;margin-top:2px;}
-.og1{font-size:114px;font-weight:900;line-height:.92;color:#0f0f0f;letter-spacing:-1px;}.og2{font-size:42px;font-weight:400;color:#444;margin-top:22px;letter-spacing:2px;}
-.info{font-size:34px;font-weight:400;color:#555;margin-top:18px;}.gbox{margin-top:48px;background:#b2b2b2;padding:12px 48px;font-size:43px;font-weight:700;color:#0f0f0f;}
-.og3{margin-top:44px;font-size:46px;}.ppe{font-size:43px;font-weight:400;color:#1a1a1a;margin-top:26px;}.mw{font-size:46px;font-weight:400;color:#333;margin-top:16px;letter-spacing:6px;}
-.pf{font-size:34px;font-weight:400;color:#555;margin-top:14px;}
-#bc{position:absolute;bottom:${bcBottom}px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:4px;}.bc-nr{font-size:13px;font-weight:400;color:#222;letter-spacing:2px;}
-.price{position:absolute;bottom:${spBottom}px;left:0;right:0;display:flex;justify-content:center;align-items:flex-end;font-weight:900;color:#0f0f0f;line-height:1;overflow:hidden;}
-.pi{font-size:158px;}.pd{font-size:98px;margin-bottom:18px;letter-spacing:1px;}
-</style></head><body>
-${placeholderHTML}<div id="ct">${contentHTML}</div>${bcBlock}
-${form.preis?`<div class="price"><span class="pi">${int},</span><span class="pd">${dec}€</span></div>`:""}
-</body></html>`;
-  const win=window.open("","_blank");
-  if(!win){alert("Popup blockiert.");return;}
-  win.document.write(html); win.document.close();
-  win.onload=()=>setTimeout(()=>win.print(),800);
+  const cdSz=cds.reduce((s,c)=>s+c.length,0);
+  const eocd=new Uint8Array(22);const ev=new DataView(eocd.buffer);
+  ev.setUint32(0,0x06054b50,true);ev.setUint16(8,files.length,true);ev.setUint16(10,files.length,true);
+  ev.setUint32(12,cdSz,true);ev.setUint32(16,offset,true);
+  const all=[...parts,...cds,eocd];const total=all.reduce((s,a)=>s+a.length,0);
+  const out=new Uint8Array(total);let pos=0;
+  for(const a of all){out.set(a,pos);pos+=a.length;}
+  return out;
+}
+const PLAKA_MARKER="PLAKA-DATEN:";
+const xe=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const xu=s=>s.replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&amp;/g,"&");
+function buildDocx(form,settings){
+  const payload=xe(JSON.stringify({_v:1,form,settings}));
+  const title=((form.hersteller||"")+(form.produkt?" "+form.produkt:"")).trim()||"Plakat";
+  const row=(k,v)=>v!=null&&v!==""?`<w:tr><w:tc><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>${xe(k)}</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t xml:space="preserve">${xe(String(v))}</w:t></w:r></w:p></w:tc></w:tr>`:"";
+  const rows=form.mode==="laden"
+    ?row("Hersteller",form.hersteller)+row("Produkt",form.produkt)+row("Info",form.info)+row("Gebinde",form.gebinde)+row("Preis",form.preis?form.preis+" €":"")+row("Mehrweg",form.mehrwegStatus)+row("Pfand",form.pfand)
+    :row("Produkt",form.produkt)+row("Herkunft",form.herkunft)+row("Preis",form.preis?form.preis+" €":"");
+  const W=`xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"`;
+  const doc=`<?xml version="1.0" encoding="UTF-8"?><w:document ${W}><w:body>`
+    +`<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="52"/><w:szCs w:val="52"/></w:rPr><w:t>${xe(title)}</w:t></w:r></w:p>`
+    +`<w:p><w:r><w:t>${xe((form.mode==="laden"?"Laden":"Obst & Gemüse")+" · DIN A4")}</w:t></w:r></w:p>`
+    +`<w:p><w:r><w:t xml:space="preserve"> </w:t></w:r></w:p>`
+    +`<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="5000" w:type="pct"/></w:tblPr>${rows}</w:tbl>`
+    +`<w:p><w:r><w:t xml:space="preserve"> </w:t></w:r></w:p>`
+    +`<w:p><w:pPr><w:rPr><w:vanish/></w:rPr></w:pPr><w:r><w:rPr><w:vanish/></w:rPr><w:t>${PLAKA_MARKER}${payload}</w:t></w:r></w:p>`
+    +`<w:sectPr/></w:body></w:document>`;
+  const cts=`<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`;
+  const r=`<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`;
+  const wr=`<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`;
+  return buildZip([{name:"[Content_Types].xml",data:cts},{name:"_rels/.rels",data:r},{name:"word/document.xml",data:doc},{name:"word/_rels/document.xml.rels",data:wr}]);
+}
+function dlDocx(bytes,name){
+  const blob=new Blob([bytes],{type:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
+  const url=URL.createObjectURL(blob);const a=document.createElement("a");
+  a.href=url;a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},100);
+}
+async function importDocx(file){
+  if(!file.name.toLowerCase().endsWith("_plaka.docx"))
+    throw new Error("Ungültige Datei — nur *_plaka.docx Dateien können importiert werden.");
+  const buf=await file.arrayBuffer();
+  const d=new Uint8Array(buf);const v=new DataView(buf);
+  let eocd=-1;
+  for(let i=d.length-22;i>=0;i--){if(v.getUint32(i,true)===0x06054b50){eocd=i;break;}}
+  if(eocd<0)throw new Error("Ungültige ZIP-Datei.");
+  const cdOff=v.getUint32(eocd+16,true),cdCnt=v.getUint16(eocd+8,true);
+  let pos=cdOff;
+  for(let i=0;i<cdCnt;i++){
+    if(v.getUint32(pos,true)!==0x02014b50)break;
+    const comp=v.getUint16(pos+10,true);
+    const nl=v.getUint16(pos+28,true),el=v.getUint16(pos+30,true),cl=v.getUint16(pos+32,true);
+    const lOff=v.getUint32(pos+42,true);
+    const fname=new TextDecoder().decode(d.slice(pos+46,pos+46+nl));
+    if(fname==="word/document.xml"){
+      if(comp!==0)throw new Error("Komprimiertes Format nicht unterstützt. Bitte mit PLAKA speichern.");
+      const lnl=v.getUint16(lOff+26,true),lel=v.getUint16(lOff+28,true);
+      const ds=lOff+30+lnl+lel;
+      const xml=new TextDecoder("utf-8").decode(d.slice(ds,ds+v.getUint32(pos+20,true)));
+      const mi=xml.indexOf(PLAKA_MARKER);
+      if(mi<0)throw new Error("Keine PLAKA-Daten gefunden.");
+      const js=mi+PLAKA_MARKER.length,je=xml.indexOf("<",js);
+      const raw2=xu(xml.slice(js,je>0?je:undefined));
+      const parsed=JSON.parse(raw2);
+      if(!parsed._v||!parsed.form)throw new Error("Ungültige PLAKA-Daten.");
+      return parsed;
+    }
+    pos+=46+nl+el+cl;
+  }
+  throw new Error("word/document.xml nicht gefunden.");
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -526,10 +574,11 @@ function LadenForm({form,up}) {
       <Field label="Info (optional)" value={form.info}       onChange={v=>up("info",v)}       placeholder="z.B. Verschiedene Sorten"/>
     </Section>
     <Section title="Je Gebinde">
-      <Row><Field label="Anzahl" value={form.menge} onChange={v=>up("menge",v)} placeholder="24" type="number" style={{flex:1}}/><SelField label="Einheit" value={form.gebinde} onChange={v=>up("gebinde",v)} options={GEBINDE_OPTS}/></Row>
+      <Field label="Text auf dem Plakat" value={form.gebinde} onChange={v=>up("gebinde",v)} placeholder="z.B. Je 24×Dose  oder  6er Träger"/>
       <InternalBox>
         <Row>
-          <Field label="Inhalt pro Einheit" value={form.produktGroesse} onChange={v=>up("produktGroesse",v)} placeholder="0.33" style={{flex:1.5}}/>
+          <Field label="Anzahl" value={form.menge} onChange={v=>up("menge",v)} placeholder="24" type="number" style={{flex:1}}/>
+          <Field label="Inhalt/Einheit" value={form.produktGroesse} onChange={v=>up("produktGroesse",v)} placeholder="0.33" style={{flex:1.5}}/>
           <SelField label="Einheit" value={form.angabe} onChange={v=>up("angabe",v)} options={ANGABE_OPTS}/>
         </Row>
       </InternalBox>
@@ -725,9 +774,24 @@ export default function PlakaApp() {
   const [settingsOpen,setSettingsOpen] = useState(false);
   const [form,setForm] = useState(DEFAULT_LADEN);
   const previewRef = useRef(null);
+  const importRef  = useRef(null);
   const [previewW, setPreviewW] = useState(460);
   const up = useCallback((k,v)=>setForm(f=>({...f,[k]:v})),[]);
   const switchMode = m=>setForm(m==="laden"?DEFAULT_LADEN:DEFAULT_OG);
+  const handleSave = useCallback(()=>{
+    const base=((form.hersteller||"")+(form.produkt?" "+form.produkt:"")).trim()||"plakat";
+    const safe=base.toLowerCase().replace(/ä/g,"ae").replace(/ö/g,"oe").replace(/ü/g,"ue").replace(/ß/g,"ss").replace(/[^a-z0-9]/g,"_").replace(/_+/g,"_").replace(/^_|_$/g,"").slice(0,30)||"plakat";
+    dlDocx(buildDocx(form,settings),`${safe}_plaka.docx`);
+  },[form,settings]);
+  const handleImport = useCallback(async e=>{
+    const file=e.target.files?.[0]; if(!file) return;
+    try{
+      const data=await importDocx(file);
+      setForm({...DEFAULT_LADEN,...data.form});
+      if(data.settings) setSettings(s=>({...s,...data.settings}));
+    }catch(err){alert("Import fehlgeschlagen: "+err.message);}
+    finally{e.target.value="";}
+  },[setSettings]);
   useEffect(()=>{
     if(!previewRef.current) return;
     const ro=new ResizeObserver(e=>setPreviewW(Math.max(200,e[0].contentRect.width-80)));
@@ -783,8 +847,17 @@ export default function PlakaApp() {
           <button onClick={()=>setSettingsOpen(true)} style={{display:"flex",alignItems:"center",gap:7,background:settingsOpen?T.bg4:"transparent",border:`1px solid ${settingsOpen?T.b3:T.b1}`,borderRadius:T.radius.lg,padding:"7px 14px",color:settingsOpen?T.t1:T.t2,cursor:"pointer",fontFamily:F,fontSize:11,fontWeight:600,transition:"all .15s",letterSpacing:.5}}>
             {Icon.settings(13)} Einstellungen
           </button>
+          {/* Import */}
+          <input ref={importRef} type="file" accept=".docx" onChange={handleImport} style={{display:"none"}}/>
+          <button onClick={()=>importRef.current?.click()} style={{display:"flex",alignItems:"center",gap:7,background:"transparent",border:`1px solid ${T.b1}`,borderRadius:T.radius.lg,padding:"7px 14px",color:T.t2,cursor:"pointer",fontFamily:F,fontSize:11,fontWeight:600,transition:"all .15s",letterSpacing:.5}}>
+            {Icon.upload(13)} Importieren
+          </button>
+          {/* Save */}
+          <button onClick={handleSave} style={{display:"flex",alignItems:"center",gap:7,background:"transparent",border:`1px solid ${T.b1}`,borderRadius:T.radius.lg,padding:"7px 14px",color:T.t2,cursor:"pointer",fontFamily:F,fontSize:11,fontWeight:600,transition:"all .15s",letterSpacing:.5}}>
+            {Icon.tag(13)} Speichern
+          </button>
           {/* Print */}
-          <button onClick={()=>doPrint(form,activeBgImage,settings)} style={{display:"flex",alignItems:"center",gap:8,background:T.gold,border:"none",borderRadius:T.radius.lg,padding:"8px 20px",color:"#ffffff",cursor:"pointer",fontFamily:F,fontSize:12,fontWeight:700,letterSpacing:.5,transition:"all .15s",boxShadow:`0 1px 6px rgba(26,79,168,.25)`}}
+          <button onClick={()=>window.print()} style={{display:"flex",alignItems:"center",gap:8,background:T.gold,border:"none",borderRadius:T.radius.lg,padding:"8px 20px",color:"#ffffff",cursor:"pointer",fontFamily:F,fontSize:12,fontWeight:700,letterSpacing:.5,transition:"all .15s",boxShadow:`0 1px 6px rgba(26,79,168,.25)`}}
             onMouseDown={e=>e.currentTarget.style.opacity=".85"}
             onMouseUp={e=>e.currentTarget.style.opacity="1"}>
             {Icon.print(13)} Drucken
@@ -838,18 +911,29 @@ export default function PlakaApp() {
 
       <SettingsDrawer open={settingsOpen} onClose={()=>setSettingsOpen(false)} settings={settings} setSettings={setSettings} images={images} saveVD={saveVD} removeVD={removeVD}/>
 
+      {/* Print layer — always rendered, off-screen on screen, full-size on print */}
+      <div id="plaka-print-layer">
+        <PosterView form={form} bgImage={activeBgImage} settings={settings} scale={1}/>
+      </div>
+
       <style>{`
         *{box-sizing:border-box;}
         input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
         input[type=number]{-moz-appearance:textfield;}
         input[type=range]{-webkit-appearance:none;appearance:none;height:3px;border-radius:2px;background:${T.b2};outline:none;}
-        input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:${T.gold};cursor:pointer;box-shadow:0 0 0 3px rgba(196,154,40,.18);}
+        input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:${T.gold};cursor:pointer;box-shadow:0 0 0 3px rgba(26,79,168,.18);}
         input::placeholder,select::placeholder{color:${T.t3};}
         option{background:${T.bg1};color:${T.t1};}
         ::-webkit-scrollbar{width:4px;height:4px;}
         ::-webkit-scrollbar-track{background:transparent;}
         ::-webkit-scrollbar-thumb{background:${T.b2};border-radius:2px;}
         ::-webkit-scrollbar-thumb:hover{background:${T.b3};}
+        #plaka-print-layer{position:fixed;top:0;left:-9999px;width:794px;height:1123px;pointer-events:none;z-index:-1;}
+        @media print{
+          @page{size:A4 portrait;margin:0;}
+          body{visibility:hidden;}
+          #plaka-print-layer{visibility:visible;left:0;width:210mm;height:297mm;overflow:hidden;}
+        }
       `}</style>
     </div>
   );
