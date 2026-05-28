@@ -334,8 +334,10 @@ function doPrint(form,bgImageRaw,settings) {
   }
   const html=`<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>Preisplakat</title>
 <style>${fontImport}
-*{margin:0;padding:0;box-sizing:border-box;}html,body{width:210mm;height:297mm;overflow:hidden;}
-body{position:relative;background:#fff;${bgStyle}font-family:${FONT};}
+@page{size:A4 portrait;margin:0;}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{width:210mm;height:297mm;}
+body{position:relative;width:210mm;height:297mm;overflow:hidden;background:#fff;${bgStyle}font-family:${FONT};}
 #bg{position:absolute;inset:0;background:#fff;}.ts{position:absolute;top:0;left:0;right:0;height:58px;background:linear-gradient(90deg,#c8001a,#a00015);display:flex;align-items:center;justify-content:center;gap:16px;}
 .ci{width:28px;height:28px;border-radius:50%;border:2.5px solid rgba(255,255,255,.45);}.ts span{color:rgba(255,255,255,.45);font-size:20px;font-weight:800;letter-spacing:8px;}
 .bs{position:absolute;bottom:0;left:0;right:0;height:44px;background:linear-gradient(90deg,#c8001a,#a00015);display:flex;align-items:center;justify-content:center;}
@@ -347,9 +349,8 @@ body{position:relative;background:#fff;${bgStyle}font-family:${FONT};}
 .og3{margin-top:44px;font-size:46px;}.ppe{font-size:43px;font-weight:400;color:#1a1a1a;margin-top:26px;}.mw{font-size:46px;font-weight:400;color:#333;margin-top:16px;letter-spacing:6px;}
 .pf{font-size:34px;font-weight:400;color:#555;margin-top:14px;}
 #bc{position:absolute;bottom:${bcBottom}px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:8px;}.bc-nr{font-size:26px;font-weight:400;color:#222;letter-spacing:3px;}
-.price{position:absolute;bottom:${spBottom}px;left:0;right:0;display:flex;justify-content:center;align-items:flex-end;font-weight:900;color:#0f0f0f;line-height:1;}
+.price{position:absolute;bottom:${spBottom}px;left:0;right:0;display:flex;justify-content:center;align-items:flex-end;font-weight:900;color:#0f0f0f;line-height:1;overflow:hidden;}
 .pi{font-size:158px;}.pd{font-size:98px;margin-bottom:18px;letter-spacing:1px;}
-@media print{html,body{width:210mm;height:297mm;}}
 </style></head><body>
 ${placeholderHTML}<div id="ct">${contentHTML}</div>${bcBlock}
 ${form.preis?`<div class="price"><span class="pi">${int},</span><span class="pd">${dec}€</span></div>`:""}
