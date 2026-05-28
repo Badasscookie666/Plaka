@@ -256,7 +256,7 @@ function PosterView({form,bgImage,settings,scale=1,noBg=false}) {
   const decFs=Math.round(intFs*0.60);
   const decMb=Math.round(intFs*0.11);
   const showBC=form.showBarcode&&form.artikelNr;
-  const bcBottom=spBottom+Math.round(intFs*1.08)+24;
+  const bcBottom=spBottom+Math.round(intFs*1.08)+220;
   const [bgOk,setBgOk]=useState(true);
   useEffect(()=>setBgOk(true),[bgImage]);
   return(
