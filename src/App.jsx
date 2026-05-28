@@ -252,7 +252,7 @@ function PosterView({form,bgImage,settings,scale=1}) {
   const spTop=settings.spacingTop, spBottom=settings.spacingBottom;
   const {int,dec}=splitPrice(form.preis);
   const showBC=form.showBarcode&&form.artikelNr;
-  const bcBottom=spBottom+156+28;
+  const bcBottom=spBottom+182;
   const [bgOk,setBgOk]=useState(true);
   useEffect(()=>setBgOk(true),[bgImage]);
   return(
@@ -263,9 +263,9 @@ function PosterView({form,bgImage,settings,scale=1}) {
         :<OGContent    form={form} FONT={FONT} spTop={spTop} spBottom={spBottom} showBC={showBC} bcBottom={bcBottom}/>
       }
       {showBC&&(
-        <div style={{position:"absolute",bottom:bcBottom,left:0,right:0,display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
-          <div dangerouslySetInnerHTML={{__html:(renderC39(form.artikelNr,{barHeight:68,quietZone:8})?.svg||"")}}/>
-          <div style={{fontFamily:FONT,fontSize:26,fontWeight:400,color:"#222",letterSpacing:3}}>
+        <div style={{position:"absolute",bottom:bcBottom,left:0,right:0,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+          <div dangerouslySetInnerHTML={{__html:(renderC39(form.artikelNr,{barHeight:28,quietZone:6})?.svg||"")}}/>
+          <div style={{fontFamily:FONT,fontSize:13,fontWeight:400,color:"#222",letterSpacing:2}}>
             {form.artikelNr.toUpperCase().replace(/[^0-9A-Z\-\. \$\/\+\%]/g,'')}
           </div>
         </div>
@@ -282,7 +282,7 @@ function PosterView({form,bgImage,settings,scale=1}) {
 function LadenContent({form,FONT,spTop,spBottom,showBC,bcBottom}) {
   const{gebindeBox,ppe}=buildLadenData(form);
   const hasMW=form.mehrwegStatus==="mehrweg", hasEW=form.mehrwegStatus==="einweg";
-  const cb=showBC?bcBottom+68+24:spBottom+170;
+  const cb=showBC?bcBottom+56:spBottom+170;
   return(
     <div style={{position:"absolute",top:72,left:0,right:0,bottom:cb,display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center",paddingTop:spTop,paddingLeft:24,paddingRight:24,overflow:"hidden"}}>
       {form.hersteller&&<div style={{fontFamily:FONT,fontSize:102,fontWeight:900,lineHeight:.95,color:"#0f0f0f",letterSpacing:-1}}>{form.hersteller}</div>}
@@ -297,7 +297,7 @@ function LadenContent({form,FONT,spTop,spBottom,showBC,bcBottom}) {
 }
 function OGContent({form,FONT,spTop,spBottom,showBC,bcBottom}) {
   const{infoBox}=buildOGData(form);
-  const cb=showBC?bcBottom+68+24:spBottom+170;
+  const cb=showBC?bcBottom+56:spBottom+170;
   return(
     <div style={{position:"absolute",top:72,left:0,right:0,bottom:cb,display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center",paddingTop:spTop,paddingLeft:24,paddingRight:24,overflow:"hidden"}}>
       {form.produkt&&  <div style={{fontFamily:FONT,fontSize:114,fontWeight:900,lineHeight:.92,color:"#0f0f0f",letterSpacing:-1}}>{form.produkt}</div>}
@@ -318,11 +318,11 @@ function doPrint(form,bgImageRaw,settings) {
   const fOpt=FONT_OPTIONS.find(f=>f.id===settings.posterFont);
   const fontImport=fOpt?.gf?`@import url('https://fonts.googleapis.com/css2?family=${fOpt.gf}&display=swap');`:"";
   const showBC=form.showBarcode&&form.artikelNr;
-  const bcBottom=spBottom+156+28, contentBottom=showBC?bcBottom+68+24:spBottom+170;
+  const bcBottom=spBottom+182, contentBottom=showBC?bcBottom+56:spBottom+170;
   const placeholderHTML=bgImage?"":
     `<div id="bg"><div class="ts"><div class="ci"></div><span>MEIN MARKT</span></div><div class="bs"><span>TÄGLICH FRISCH · TÄGLICH GUT · WWW.MEIN-MARKT.DE</span></div><div class="wm">VORDRUCK</div></div>`;
   let bcBlock="";
-  if(showBC){const bc=renderC39(form.artikelNr,{barHeight:68,quietZone:8}); if(bc){const clean=form.artikelNr.toUpperCase().replace(/[^0-9A-Z\-\. \$\/\+\%]/g,''); bcBlock=`<div id="bc">${bc.svg}<div class="bc-nr">${clean}</div></div>`;}}
+  if(showBC){const bc=renderC39(form.artikelNr,{barHeight:28,quietZone:6}); if(bc){const clean=form.artikelNr.toUpperCase().replace(/[^0-9A-Z\-\. \$\/\+\%]/g,''); bcBlock=`<div id="bc">${bc.svg}<div class="bc-nr">${clean}</div></div>`;}}
   let contentHTML="";
   if(form.mode==="laden"){
     const{gebindeBox,ppe}=buildLadenData(form); const hasMW=form.mehrwegStatus==="mehrweg",hasEW=form.mehrwegStatus==="einweg";
@@ -348,7 +348,7 @@ body{position:relative;width:210mm;height:297mm;overflow:hidden;background:#fff;
 .info{font-size:34px;font-weight:400;color:#555;margin-top:18px;}.gbox{margin-top:48px;background:#b2b2b2;padding:12px 48px;font-size:43px;font-weight:700;color:#0f0f0f;}
 .og3{margin-top:44px;font-size:46px;}.ppe{font-size:43px;font-weight:400;color:#1a1a1a;margin-top:26px;}.mw{font-size:46px;font-weight:400;color:#333;margin-top:16px;letter-spacing:6px;}
 .pf{font-size:34px;font-weight:400;color:#555;margin-top:14px;}
-#bc{position:absolute;bottom:${bcBottom}px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:8px;}.bc-nr{font-size:26px;font-weight:400;color:#222;letter-spacing:3px;}
+#bc{position:absolute;bottom:${bcBottom}px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:4px;}.bc-nr{font-size:13px;font-weight:400;color:#222;letter-spacing:2px;}
 .price{position:absolute;bottom:${spBottom}px;left:0;right:0;display:flex;justify-content:center;align-items:flex-end;font-weight:900;color:#0f0f0f;line-height:1;overflow:hidden;}
 .pi{font-size:158px;}.pd{font-size:98px;margin-bottom:18px;letter-spacing:1px;}
 </style></head><body>
@@ -494,7 +494,7 @@ function AnzeigePicker({value,onChange}) {
 // ─────────────────────────────────────────────────────────────
 function BarcodePreviewMini({artikelNr}) {
   if(!artikelNr) return null;
-  const result=renderC39(artikelNr,{barHeight:36,quietZone:6});
+  const result=renderC39(artikelNr,{barHeight:24,quietZone:5});
   if(!result) return null;
   return(
     <div style={{padding:"10px 12px",borderRadius:T.radius.md,background:T.bg0,border:`1px solid ${T.b1}`,display:"flex",justifyContent:"center",alignItems:"center",overflow:"hidden"}}>
