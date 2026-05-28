@@ -38,31 +38,31 @@ const DEFAULT_OG = {
 //  DESIGN TOKENS
 // ─────────────────────────────────────────────────────────────
 const T = {
-  bg0:    "#07090f",
-  bg1:    "#0c1018",
-  bg2:    "#111620",
-  bg3:    "#161d2c",
-  bg4:    "#1c2538",
-  b1:     "#1a2236",
-  b2:     "#223049",
-  b3:     "#2d4060",
-  t1:     "#d6dff0",
-  t2:     "#5a6a88",
-  t3:     "#2e3d58",
-  gold:   "#c49a28",
-  goldBg: "rgba(196,154,40,0.07)",
-  goldBd: "rgba(196,154,40,0.22)",
-  green:  "#3a9060",
-  greenBg:"rgba(58,144,96,0.08)",
-  greenBd:"rgba(58,144,96,0.25)",
-  amber:  "#c46a28",
-  amberBg:"rgba(196,106,40,0.08)",
-  amberBd:"rgba(196,106,40,0.25)",
-  red:    "#9b3030",
-  redBg:  "rgba(155,48,48,0.08)",
-  redBd:  "rgba(155,48,48,0.28)",
-  radius: { sm:4, md:6, lg:8, xl:10 },
-  font:   "'Syne', sans-serif",
+  bg0:    "#f0f2f5",
+  bg1:    "#ffffff",
+  bg2:    "#f5f7fa",
+  bg3:    "#edf0f4",
+  bg4:    "#e4e8ef",
+  b1:     "#e2e6ec",
+  b2:     "#cdd3dc",
+  b3:     "#b8c0cc",
+  t1:     "#1c2333",
+  t2:     "#5c6677",
+  t3:     "#9ba8b5",
+  gold:   "#1a4fa8",
+  goldBg: "rgba(26,79,168,0.06)",
+  goldBd: "rgba(26,79,168,0.20)",
+  green:  "#1f7a45",
+  greenBg:"rgba(31,122,69,0.07)",
+  greenBd:"rgba(31,122,69,0.22)",
+  amber:  "#b86210",
+  amberBg:"rgba(184,98,16,0.07)",
+  amberBd:"rgba(184,98,16,0.22)",
+  red:    "#c42d2d",
+  redBg:  "rgba(196,45,45,0.07)",
+  redBd:  "rgba(196,45,45,0.22)",
+  radius: { sm:3, md:4, lg:6, xl:8 },
+  font:   "'Inter','Segoe UI',system-ui,-apple-system,sans-serif",
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -89,7 +89,7 @@ function useFonts() {
     const fams = FONT_OPTIONS.filter(f=>f.gf).map(f=>f.gf).join("&family=");
     const l = document.createElement("link");
     l.id="plaka-gf"; l.rel="stylesheet";
-    l.href=`https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=${fams}&display=swap`;
+    l.href=`https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=${fams}&display=swap`;
     document.head.appendChild(l);
   }, []);
 }
@@ -150,6 +150,11 @@ function useVordrucke() {
     setImgs(prev=>({...prev,[type]:null}));
   }, []);
   return [imgs, save, remove, ready];
+}
+
+// Resolves active background: user-uploaded override OR public-folder default
+function resolveVordruckSrc(userImg, type) {
+  return userImg ?? `/${type.toUpperCase()}.png`;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -248,9 +253,11 @@ function PosterView({form,bgImage,settings,scale=1}) {
   const {int,dec}=splitPrice(form.preis);
   const showBC=form.showBarcode&&form.artikelNr;
   const bcBottom=spBottom+156+28;
+  const [bgOk,setBgOk]=useState(true);
+  useEffect(()=>setBgOk(true),[bgImage]);
   return(
-    <div style={{width:POSTER_W,height:POSTER_H,position:"relative",overflow:"hidden",transformOrigin:"top left",transform:`scale(${scale})`,flexShrink:0,boxShadow:scale<1?"0 12px 48px rgba(0,0,0,.5),0 2px 8px rgba(0,0,0,.3)":"none",background:"#fff"}}>
-      {bgImage?<img src={bgImage} alt="" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}/>:<PlaceholderBg/>}
+    <div style={{width:POSTER_W,height:POSTER_H,position:"relative",overflow:"hidden",transformOrigin:"top left",transform:`scale(${scale})`,flexShrink:0,boxShadow:scale<1?"0 4px 24px rgba(0,0,0,.18),0 1px 4px rgba(0,0,0,.10)":"none",background:"#fff"}}>
+      {bgImage&&bgOk?<img src={bgImage} alt="" onError={()=>setBgOk(false)} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}/>:<PlaceholderBg/>}
       {form.mode==="laden"
         ?<LadenContent form={form} FONT={FONT} spTop={spTop} spBottom={spBottom} showBC={showBC} bcBottom={bcBottom}/>
         :<OGContent    form={form} FONT={FONT} spTop={spTop} spBottom={spBottom} showBC={showBC} bcBottom={bcBottom}/>
