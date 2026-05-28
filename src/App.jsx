@@ -256,7 +256,7 @@ function PosterView({form,bgImage,settings,scale=1,noBg=false}) {
   const decFs=Math.round(intFs*0.60);
   const decMb=Math.round(intFs*0.11);
   const showBC=form.showBarcode&&form.artikelNr;
-  const bcBottom=spBottom+Math.round(intFs*1.08)+220;
+  const bcBottom=spBottom+Math.round(intFs*1.08)+170;
   const [bgOk,setBgOk]=useState(true);
   useEffect(()=>setBgOk(true),[bgImage]);
   return(
@@ -931,8 +931,8 @@ export default function PlakaApp() {
         #plaka-print-layer{position:fixed;top:0;left:-9999px;width:794px;height:1123px;pointer-events:none;z-index:-1;}
         @media print{
           @page{size:A4 portrait;margin:0;}
-          html,body{height:297mm;max-height:297mm;overflow:hidden;visibility:hidden;}
-          #plaka-print-layer{visibility:visible;left:0 !important;width:210mm;height:297mm;overflow:hidden;background:#fff;}
+          html,body{overflow:hidden;height:297mm;max-height:297mm;visibility:hidden;}
+          #plaka-print-layer{visibility:visible;position:absolute !important;top:0 !important;left:0 !important;width:210mm !important;height:297mm !important;overflow:hidden !important;background:#fff;}
         }
       `}</style>
     </div>
