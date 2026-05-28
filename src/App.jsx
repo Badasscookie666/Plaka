@@ -25,14 +25,14 @@ const FONT_OPTIONS = [
 const DEFAULT_SETTINGS = { posterFont:"barlow", spacingTop:50, spacingBottom:64, activeVordruck:"np" };
 
 const DEFAULT_LADEN = {
-  mode:"laden", hersteller:"Desperados", produkt:"Tropical Daiquiri",
-  produktGroesse:"0.33", angabe:"L", info:"", menge:"24", gebinde:"Je 24×Dose",
-  mehrwegStatus:"mehrweg", pfand:"", preis:"45.99", showBarcode:false, artikelNr:"",
+  mode:"laden", hersteller:"", produkt:"",
+  produktGroesse:"", angabe:"L", info:"", menge:"", gebinde:"",
+  mehrwegStatus:"", pfand:"", preis:"", showBarcode:false, artikelNr:"",
 };
 const DEFAULT_OG = {
-  mode:"og", produkt:"Tomaten", herkunft:"Deutschland",
-  anzeigeTyp:"wiege", wiegeNr:"3", pePreis:"", peEinheit:"kg",
-  preis:"1.99", showBarcode:false, artikelNr:"",
+  mode:"og", produkt:"", herkunft:"",
+  anzeigeTyp:"wiege", wiegeNr:"", pePreis:"", peEinheit:"kg",
+  preis:"", showBarcode:false, artikelNr:"",
 };
 
 // ─────────────────────────────────────────────────────────────
