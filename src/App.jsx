@@ -310,7 +310,8 @@ function OGContent({form,FONT,spTop,spBottom,showBC,bcBottom}) {
 // ─────────────────────────────────────────────────────────────
 //  PRINT
 // ─────────────────────────────────────────────────────────────
-function doPrint(form,bgImage,settings) {
+function doPrint(form,bgImageRaw,settings) {
+  const bgImage=bgImageRaw;
   const FONT=getFontCss(settings.posterFont), spTop=settings.spacingTop, spBottom=settings.spacingBottom;
   const{int,dec}=splitPrice(form.preis);
   const bgStyle=bgImage?`background-image:url('${bgImage}');background-size:cover;background-position:center;`:"";
@@ -609,12 +610,17 @@ function VordruckSlot({type,label,accentColor,accentBg,accentBd,images,saveVD,re
           </div>
         </div>
       ):(
-        <div onClick={()=>fileRef.current?.click()} style={{margin:"12px 14px",padding:"20px",borderRadius:T.radius.lg,border:`1px dashed ${T.b2}`,display:"flex",flexDirection:"column",alignItems:"center",gap:6,cursor:"pointer",transition:"all .15s",userSelect:"none"}}
-          onMouseEnter={e=>{e.currentTarget.style.borderColor=accentColor; e.currentTarget.style.background=accentBg;}}
-          onMouseLeave={e=>{e.currentTarget.style.borderColor=T.b2; e.currentTarget.style.background="transparent";}}>
-          {Icon.upload(18)}
-          <div style={{color:T.t2,fontSize:11,fontFamily:F,fontWeight:600}}>{saving?"Wird gespeichert …":`${type.toUpperCase()}.png hochladen`}</div>
-          <div style={{color:T.t3,fontSize:9,fontFamily:F}}>PNG, max. 4,5 MB</div>
+        <div style={{margin:"12px 14px",display:"flex",flexDirection:"column",gap:8}}>
+          <div style={{padding:"7px 10px",borderRadius:T.radius.md,background:T.bg3,border:`1px solid ${T.b1}`,color:T.t2,fontSize:10,fontFamily:F}}>
+            Verwendet <span style={{color:T.t1,fontWeight:600}}>/{type.toUpperCase()}.png</span> aus Public-Ordner
+          </div>
+          <div onClick={()=>fileRef.current?.click()} style={{padding:"14px",borderRadius:T.radius.lg,border:`1px dashed ${T.b2}`,display:"flex",flexDirection:"column",alignItems:"center",gap:5,cursor:"pointer",transition:"all .15s",userSelect:"none"}}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor=accentColor; e.currentTarget.style.background=accentBg;}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor=T.b2; e.currentTarget.style.background="transparent";}}>
+            {Icon.upload(15)}
+            <div style={{color:T.t2,fontSize:10,fontFamily:F,fontWeight:600}}>{saving?"Wird gespeichert …":"Eigene Datei überschreiben"}</div>
+            <div style={{color:T.t3,fontSize:9,fontFamily:F}}>PNG, max. 4,5 MB</div>
+          </div>
         </div>
       )}
       <input ref={fileRef} type="file" accept="image/png,image/*" onChange={handleFile} style={{display:"none"}}/>
@@ -727,7 +733,7 @@ export default function PlakaApp() {
     ro.observe(previewRef.current); return()=>ro.disconnect();
   },[]);
   const scale=Math.min(1,previewW/POSTER_W);
-  const activeBgImage=images[settings.activeVordruck]??null;
+  const activeBgImage=resolveVordruckSrc(images[settings.activeVordruck],settings.activeVordruck);
 
   if(!settingsLoaded||!vdReady) return(
     <div style={{minHeight:"100vh",background:T.bg0,display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -765,10 +771,9 @@ export default function PlakaApp() {
             {[{id:"ap",label:"AP",c:T.amber,bg:T.amberBg,bd:T.amberBd},{id:"np",label:"NP",c:T.green,bg:T.greenBg,bd:T.greenBd}].map(v=>{
               const isA=settings.activeVordruck===v.id, hasI=!!images[v.id];
               return(
-                <button key={v.id} onClick={()=>setSettings(s=>({...s,activeVordruck:v.id}))} title={`${v.id==="ap"?"Aktionspreis":"Normalpreis"}${hasI?"":" — noch nicht hochgeladen"}`}
-                  style={{position:"relative",padding:"5px 16px",borderRadius:T.radius.md,border:`1px solid ${isA?v.bd:"transparent"}`,cursor:"pointer",fontFamily:F,fontSize:11,fontWeight:800,letterSpacing:1.5,background:isA?v.bg:"transparent",color:isA?v.c:T.t3,transition:"all .15s"}}>
+                <button key={v.id} onClick={()=>setSettings(s=>({...s,activeVordruck:v.id}))} title={v.id==="ap"?"Aktionspreis":"Normalpreis"}
+                  style={{position:"relative",padding:"5px 16px",borderRadius:T.radius.md,border:`1px solid ${isA?v.bd:"transparent"}`,cursor:"pointer",fontFamily:F,fontSize:11,fontWeight:700,letterSpacing:1,background:isA?v.bg:"transparent",color:isA?v.c:T.t2,transition:"all .15s"}}>
                   {v.label}
-                  {!hasI&&<span style={{position:"absolute",top:3,right:3,width:4,height:4,borderRadius:"50%",background:T.red}}/>}
                 </button>
               );
             })}
@@ -778,7 +783,7 @@ export default function PlakaApp() {
             {Icon.settings(13)} Einstellungen
           </button>
           {/* Print */}
-          <button onClick={()=>doPrint(form,activeBgImage,settings)} style={{display:"flex",alignItems:"center",gap:8,background:T.gold,border:"none",borderRadius:T.radius.lg,padding:"8px 20px",color:"#0a0a0a",cursor:"pointer",fontFamily:F,fontSize:12,fontWeight:800,letterSpacing:1,transition:"all .15s",boxShadow:`0 2px 16px rgba(196,154,40,.3)`}}
+          <button onClick={()=>doPrint(form,activeBgImage,settings)} style={{display:"flex",alignItems:"center",gap:8,background:T.gold,border:"none",borderRadius:T.radius.lg,padding:"8px 20px",color:"#ffffff",cursor:"pointer",fontFamily:F,fontSize:12,fontWeight:700,letterSpacing:.5,transition:"all .15s",boxShadow:`0 1px 6px rgba(26,79,168,.25)`}}
             onMouseDown={e=>e.currentTarget.style.opacity=".85"}
             onMouseUp={e=>e.currentTarget.style.opacity="1"}>
             {Icon.print(13)} Drucken
@@ -806,10 +811,10 @@ export default function PlakaApp() {
         <div ref={previewRef} style={{flex:1,overflowY:"auto",background:T.bg0,display:"flex",flexDirection:"column",alignItems:"center",padding:"32px 40px 48px"}}>
           {/* Status bar */}
           <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:22,alignSelf:"flex-start"}}>
-            <div style={{width:5,height:5,borderRadius:"50%",background:T.gold,boxShadow:`0 0 8px ${T.gold}`}}/>
+            <div style={{width:5,height:5,borderRadius:"50%",background:T.gold}}/>
             <span style={{color:T.t3,fontSize:9,fontWeight:700,letterSpacing:2.5}}>LIVE VORSCHAU · DIN A4</span>
             <span style={{padding:"2px 9px",borderRadius:T.radius.sm,background:avBg,border:`1px solid ${avBd}`,color:avColor,fontSize:9,fontWeight:700,letterSpacing:.5}}>
-              {av.toUpperCase()} — {av==="ap"?"Aktionspreis":"Normalpreis"}{!images[av]?" · nicht geladen":""}
+              {av.toUpperCase()} — {av==="ap"?"Aktionspreis":"Normalpreis"}{images[av]?" · Eigene Datei":""}
             </span>
             <span style={{padding:"2px 9px",borderRadius:T.radius.sm,background:T.bg2,border:`1px solid ${T.b1}`,color:T.t3,fontSize:9,fontWeight:500}}>
               {FONT_OPTIONS.find(f=>f.id===settings.posterFont)?.label}
