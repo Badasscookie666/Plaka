@@ -253,7 +253,9 @@ function PosterView({form,bgImage,settings,scale=1,noBg=false}) {
   const spTop=settings.spacingTop, spBottom=settings.spacingBottom;
   const {int,dec}=splitPrice(form.preis);
   const wf=int.length*0.60+0.28+dec.length*0.36+0.39;
-  const intFs=Math.max(80,Math.min(220,Math.floor((POSTER_W-60)/Math.max(1,wf))));
+  const intFsW=Math.floor((POSTER_W-60)/Math.max(1,wf));
+  const intFsH=Math.floor(PRICE_BOX_H*0.92);
+  const intFs=Math.max(80,Math.min(intFsH,intFsW));
   const decFs=Math.round(intFs*0.60);
   const decMb=Math.round(intFs*0.07);
   const showBC=form.showBarcode&&form.artikelNr;
@@ -815,7 +817,8 @@ export default function PlakaApp() {
   const avBd=av==="ap"?T.amberBd:T.greenBd;
 
   return(
-    <div style={{height:"100vh",background:T.bg0,fontFamily:F,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+    <>
+    <div id="plaka-app" style={{height:"100vh",background:T.bg0,fontFamily:F,display:"flex",flexDirection:"column",overflow:"hidden"}}>
 
       {/* ═══ HEADER ═══ */}
       <header style={{height:60,background:T.bg1,borderBottom:`1px solid ${T.b1}`,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 28px",flexShrink:0}}>
@@ -913,31 +916,32 @@ export default function PlakaApp() {
       </div>
 
       <SettingsDrawer open={settingsOpen} onClose={()=>setSettingsOpen(false)} settings={settings} setSettings={setSettings} images={images} saveVD={saveVD} removeVD={removeVD}/>
-
-      {/* Print layer — no background (template is on physical paper), off-screen on screen */}
-      <div id="plaka-print-layer">
-        <PosterView form={form} bgImage={null} settings={settings} scale={1} noBg={true}/>
-      </div>
-
-      <style>{`
-        *{box-sizing:border-box;}
-        input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
-        input[type=number]{-moz-appearance:textfield;}
-        input[type=range]{-webkit-appearance:none;appearance:none;height:3px;border-radius:2px;background:${T.b2};outline:none;}
-        input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:${T.gold};cursor:pointer;box-shadow:0 0 0 3px rgba(26,79,168,.18);}
-        input::placeholder,select::placeholder{color:${T.t3};}
-        option{background:${T.bg1};color:${T.t1};}
-        ::-webkit-scrollbar{width:4px;height:4px;}
-        ::-webkit-scrollbar-track{background:transparent;}
-        ::-webkit-scrollbar-thumb{background:${T.b2};border-radius:2px;}
-        ::-webkit-scrollbar-thumb:hover{background:${T.b3};}
-        #plaka-print-layer{position:fixed;top:0;left:-9999px;width:794px;height:1123px;pointer-events:none;z-index:-1;}
-        @media print{
-          @page{size:A4 portrait;margin:0;}
-          html,body{overflow:hidden;height:297mm;max-height:297mm;visibility:hidden;}
-          #plaka-print-layer{visibility:visible;position:absolute !important;top:0 !important;left:0 !important;width:210mm !important;height:297mm !important;overflow:hidden !important;background:#fff;}
-        }
-      `}</style>
     </div>
+
+    <div id="plaka-print-layer">
+      <PosterView form={form} bgImage={null} settings={settings} scale={1} noBg={true}/>
+    </div>
+
+    <style>{`
+      *{box-sizing:border-box;}
+      input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
+      input[type=number]{-moz-appearance:textfield;}
+      input[type=range]{-webkit-appearance:none;appearance:none;height:3px;border-radius:2px;background:${T.b2};outline:none;}
+      input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:${T.gold};cursor:pointer;box-shadow:0 0 0 3px rgba(26,79,168,.18);}
+      input::placeholder,select::placeholder{color:${T.t3};}
+      option{background:${T.bg1};color:${T.t1};}
+      ::-webkit-scrollbar{width:4px;height:4px;}
+      ::-webkit-scrollbar-track{background:transparent;}
+      ::-webkit-scrollbar-thumb{background:${T.b2};border-radius:2px;}
+      ::-webkit-scrollbar-thumb:hover{background:${T.b3};}
+      #plaka-print-layer{position:fixed;top:0;left:-9999px;width:794px;height:1123px;pointer-events:none;z-index:-1;}
+      @media print{
+        @page{size:A4 portrait;margin:0;}
+        html,body{margin:0;padding:0;}
+        #plaka-app{display:none !important;}
+        #plaka-print-layer{display:block !important;position:absolute !important;top:0 !important;left:0 !important;width:210mm !important;height:297mm !important;overflow:hidden !important;background:#fff;}
+      }
+    `}</style>
+    </>
   );
 }
