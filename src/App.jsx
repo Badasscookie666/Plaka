@@ -5,6 +5,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 // ─────────────────────────────────────────────────────────────
 const POSTER_W    = 794;
 const POSTER_H    = 1123;
+const PRICE_BOX_H = 250;
 const STORAGE_KEY = "plaka_settings_v4";
 const VD_KEY      = { ap:"plaka_vordruck_ap_v1", np:"plaka_vordruck_np_v1" };
 
@@ -251,12 +252,12 @@ function PosterView({form,bgImage,settings,scale=1,noBg=false}) {
   const FONT=getFontCss(settings.posterFont);
   const spTop=settings.spacingTop, spBottom=settings.spacingBottom;
   const {int,dec}=splitPrice(form.preis);
-  const intDigits=int.replace(/[^0-9]/g,"").length||2;
-  const intFs=Math.max(100,Math.min(210,230-Math.max(0,intDigits-1)*30));
+  const wf=int.length*0.60+0.28+dec.length*0.36+0.39;
+  const intFs=Math.max(80,Math.min(220,Math.floor((POSTER_W-60)/Math.max(1,wf))));
   const decFs=Math.round(intFs*0.60);
-  const decMb=Math.round(intFs*0.11);
+  const decMb=Math.round(intFs*0.07);
   const showBC=form.showBarcode&&form.artikelNr;
-  const bcBottom=spBottom+Math.round(intFs*1.08)+170;
+  const bcBottom=spBottom+PRICE_BOX_H+120;
   const [bgOk,setBgOk]=useState(true);
   useEffect(()=>setBgOk(true),[bgImage]);
   return(
@@ -275,9 +276,11 @@ function PosterView({form,bgImage,settings,scale=1,noBg=false}) {
         </div>
       )}
       {form.preis&&(
-        <div style={{position:"absolute",bottom:spBottom,left:0,right:0,display:"flex",justifyContent:"center",alignItems:"flex-end",fontFamily:FONT,fontWeight:900,color:"#0f0f0f",lineHeight:1}}>
-          <span style={{fontSize:intFs}}>{int},</span>
-          <span style={{fontSize:decFs,marginBottom:decMb,letterSpacing:1}}>{dec}€</span>
+        <div style={{position:"absolute",bottom:spBottom,left:0,right:0,height:PRICE_BOX_H,display:"flex",justifyContent:"center",alignItems:"center",overflow:"hidden"}}>
+          <div style={{display:"flex",alignItems:"flex-end",fontFamily:FONT,fontWeight:900,color:"#0f0f0f",lineHeight:1}}>
+            <span style={{fontSize:intFs}}>{int},</span>
+            <span style={{fontSize:decFs,marginBottom:decMb,letterSpacing:1}}>{dec}€</span>
+          </div>
         </div>
       )}
     </div>
@@ -286,7 +289,7 @@ function PosterView({form,bgImage,settings,scale=1,noBg=false}) {
 function LadenContent({form,FONT,spTop,spBottom,showBC,bcBottom}) {
   const{gebindeBox,ppe}=buildLadenData(form);
   const hasMW=form.mehrwegStatus==="mehrweg", hasEW=form.mehrwegStatus==="einweg";
-  const cb=showBC?bcBottom+56:spBottom+170;
+  const cb=showBC?bcBottom+56:spBottom+PRICE_BOX_H+20;
   return(
     <div style={{position:"absolute",top:72,left:0,right:0,bottom:cb,display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center",paddingTop:spTop,paddingLeft:24,paddingRight:24,overflow:"hidden"}}>
       {form.hersteller&&<div style={{fontFamily:FONT,fontSize:102,fontWeight:900,lineHeight:.95,color:"#0f0f0f",letterSpacing:-1}}>{form.hersteller}</div>}
@@ -301,7 +304,7 @@ function LadenContent({form,FONT,spTop,spBottom,showBC,bcBottom}) {
 }
 function OGContent({form,FONT,spTop,spBottom,showBC,bcBottom}) {
   const{infoBox}=buildOGData(form);
-  const cb=showBC?bcBottom+56:spBottom+170;
+  const cb=showBC?bcBottom+56:spBottom+PRICE_BOX_H+20;
   return(
     <div style={{position:"absolute",top:72,left:0,right:0,bottom:cb,display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center",paddingTop:spTop,paddingLeft:24,paddingRight:24,overflow:"hidden"}}>
       {form.produkt&&  <div style={{fontFamily:FONT,fontSize:114,fontWeight:900,lineHeight:.92,color:"#0f0f0f",letterSpacing:-1}}>{form.produkt}</div>}
