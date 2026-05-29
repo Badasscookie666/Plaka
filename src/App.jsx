@@ -5,7 +5,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 // ─────────────────────────────────────────────────────────────
 const POSTER_W    = 794;
 const POSTER_H    = 1123;
-const PRICE_BOX_H = 250;
+const PRICE_BOX_H = 285;
 const STORAGE_KEY = "plaka_settings_v4";
 const VD_KEY      = { ap:"plaka_vordruck_ap_v1", np:"plaka_vordruck_np_v1" };
 
@@ -22,15 +22,15 @@ const FONT_OPTIONS = [
   { id:"impact", label:"Impact",           css:"Impact,'Arial Narrow',Arial,sans-serif",       gf:null },
 ];
 
-const DEFAULT_SETTINGS = { posterFont:"barlow", spacingTop:50, spacingBottom:64, activeVordruck:"np" };
+const DEFAULT_SETTINGS = { posterFont:"barlow", spacingTop:50, spacingBottom:90, activeVordruck:"np" };
 
 const DEFAULT_LADEN = {
   mode:"laden", hersteller:"", produkt:"",
-  produktGroesse:"", angabe:"L", info:"", menge:"", gebinde:"",
+  produktGroesse:"", produktGroesse2:"", angabe:"L", info:"", menge:"", gebinde:"",
   mehrwegStatus:"", pfand:"", preis:"", showBarcode:false, artikelNr:"",
 };
 const DEFAULT_OG = {
-  mode:"og", produkt:"", herkunft:"",
+  mode:"og", produkt:"", herkunft:"", info:"",
   anzeigeTyp:"wiege", wiegeNr:"", pePreis:"", peEinheit:"kg",
   preis:"", showBarcode:false, artikelNr:"",
 };
@@ -193,15 +193,16 @@ function buildC39(text) {
   }
   return all;
 }
-function renderC39(text,{barHeight=70,quietZone=10}={}) {
+function renderC39(text,{maxWidth=POSTER_W-100,barHeight=70,quietZone=10}={}) {
   if(!text) return null;
   const els=buildC39(text); if(!els.length) return null;
-  const units=els.reduce((s,e)=>s+e.w,0);
-  const unit=Math.max(1,Math.min(3,Math.floor((POSTER_W-100)/(units+quietZone*2))));
-  const totalW=(units+quietZone*2)*unit;
+  const dataUnits=els.reduce((s,e)=>s+e.w,0);
+  const totalUnits=dataUnits+quietZone*2;
+  const unit=Math.max(1,Math.min(3,Math.floor(maxWidth/totalUnits)));
+  const totalW=totalUnits*unit;
   let x=quietZone*unit,rects='';
   for(const el of els){ const w=el.w*unit; if(el.bar) rects+=`<rect x="${x}" y="0" width="${w}" height="${barHeight}" fill="#000"/>`; x+=w; }
-  return { svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${totalW}" height="${barHeight}" viewBox="0 0 ${totalW} ${barHeight}">${rects}</svg>`, width:totalW, height:barHeight };
+  return { svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${totalW}" height="${barHeight}" viewBox="0 0 ${totalW} ${barHeight}" style="display:block">${rects}</svg>`, width:totalW, height:barHeight };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -212,9 +213,19 @@ const fmtDE      = (n,d=2) => isNaN(n)?"0":n.toFixed(d).replace(".",",");
 const getFontCss = id => FONT_OPTIONS.find(f=>f.id===id)?.css??FONT_OPTIONS[0].css;
 const splitPrice = s => { const n=parseFloat(String(s).replace(",",".")); if(isNaN(n)) return{int:"–",dec:"–"}; const[i,d="00"]=n.toFixed(2).split("."); return{int:i,dec:d}; };
 function buildLadenData(form) {
-  const menge=toNum(form.menge), gr=toNum(form.produktGroesse), pr=toNum(form.preis);
+  const menge=toNum(form.menge), gr=toNum(form.produktGroesse), gr2=toNum(form.produktGroesse2), pr=toNum(form.preis);
   const gebindeBox=form.gebinde;
-  const ppe=(menge>0&&gr>0&&pr>0)?`${fmtDE(pr/(menge*gr))}€/${form.angabe}`:"";
+  let ppe="";
+  if(menge>0&&gr>0&&pr>0){
+    const ppu1=pr/(menge*gr);
+    if(gr2>0){
+      const ppu2=pr/(menge*gr2);
+      const [hi,lo]=ppu1>ppu2?[ppu1,ppu2]:[ppu2,ppu1];
+      ppe=`${fmtDE(hi)}-${fmtDE(lo)}€/${form.angabe}`;
+    }else{
+      ppe=`${fmtDE(ppu1)}€/${form.angabe}`;
+    }
+  }
   return{gebindeBox,ppe};
 }
 function buildOGData(form) {
@@ -271,7 +282,7 @@ function PosterView({form,bgImage,settings,scale=1,noBg=false}) {
       }
       {showBC&&(
         <div style={{position:"absolute",bottom:bcBottom,left:0,right:0,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
-          <div dangerouslySetInnerHTML={{__html:(renderC39(form.artikelNr,{barHeight:28,quietZone:6})?.svg||"")}}/>
+          <div dangerouslySetInnerHTML={{__html:(renderC39(form.artikelNr,{maxWidth:POSTER_W-80,barHeight:28,quietZone:6})?.svg||"")}}/>
           <div style={{fontFamily:FONT,fontSize:13,fontWeight:400,color:"#222",letterSpacing:2}}>
             {form.artikelNr.toUpperCase().replace(/[^0-9A-Z\-\. \$\/\+\%]/g,'')}
           </div>
@@ -307,11 +318,13 @@ function LadenContent({form,FONT,spTop,spBottom,showBC,bcBottom}) {
 function OGContent({form,FONT,spTop,spBottom,showBC,bcBottom}) {
   const{infoBox}=buildOGData(form);
   const cb=showBC?bcBottom+56:spBottom+PRICE_BOX_H+20;
+  const boxMt=form.info?24:form.herkunft?44:60;
   return(
     <div style={{position:"absolute",top:72,left:0,right:0,bottom:cb,display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center",paddingTop:spTop,paddingLeft:24,paddingRight:24,overflow:"hidden"}}>
       {form.produkt&&  <div style={{fontFamily:FONT,fontSize:114,fontWeight:900,lineHeight:.92,color:"#0f0f0f",letterSpacing:-1}}>{form.produkt}</div>}
       {form.herkunft&& <div style={{fontFamily:FONT,fontSize:42, fontWeight:400,color:"#444",marginTop:22,letterSpacing:2}}>{form.herkunft}</div>}
-      <div style={{marginTop:form.herkunft?44:60,background:"#b2b2b2",padding:"12px 48px",fontFamily:FONT,fontSize:46,fontWeight:700,color:"#0f0f0f"}}>{infoBox}</div>
+      {form.info&&     <div style={{fontFamily:FONT,fontSize:34, fontWeight:400,color:"#555",marginTop:16,lineHeight:1.2}}>{form.info}</div>}
+      <div style={{marginTop:boxMt,background:"#b2b2b2",padding:"12px 48px",fontFamily:FONT,fontSize:46,fontWeight:700,color:"#0f0f0f"}}>{infoBox}</div>
     </div>
   );
 }
@@ -547,7 +560,7 @@ function AnzeigePicker({value,onChange}) {
 // ─────────────────────────────────────────────────────────────
 function BarcodePreviewMini({artikelNr}) {
   if(!artikelNr) return null;
-  const result=renderC39(artikelNr,{barHeight:24,quietZone:5});
+  const result=renderC39(artikelNr,{maxWidth:260,barHeight:24,quietZone:5});
   if(!result) return null;
   return(
     <div style={{padding:"10px 12px",borderRadius:T.radius.md,background:T.bg0,border:`1px solid ${T.b1}`,display:"flex",justifyContent:"center",alignItems:"center",overflow:"hidden"}}>
@@ -583,7 +596,8 @@ function LadenForm({form,up}) {
       <InternalBox>
         <Row>
           <Field label="Anzahl" value={form.menge} onChange={v=>up("menge",v)} placeholder="24" type="number" style={{flex:1}}/>
-          <Field label="Inhalt/Einheit" value={form.produktGroesse} onChange={v=>up("produktGroesse",v)} placeholder="0.33" style={{flex:1.5}}/>
+          <Field label="Inhalt" value={form.produktGroesse} onChange={v=>up("produktGroesse",v)} placeholder="0.33" style={{flex:1.5}}/>
+          <Field label="bis (opt.)" value={form.produktGroesse2} onChange={v=>up("produktGroesse2",v)} placeholder="0.40" style={{flex:1.5}}/>
           <SelField label="Einheit" value={form.angabe} onChange={v=>up("angabe",v)} options={ANGABE_OPTS}/>
         </Row>
       </InternalBox>
@@ -602,8 +616,9 @@ function LadenForm({form,up}) {
 function OGForm({form,up}) {
   return(<>
     <Section title="Produkt">
-      <Field label="Produkt"  value={form.produkt}  onChange={v=>up("produkt",v)}  placeholder="z.B. Tomaten"/>
-      <Field label="Herkunft" value={form.herkunft} onChange={v=>up("herkunft",v)} placeholder="z.B. Deutschland"/>
+      <Field label="Produkt"          value={form.produkt}  onChange={v=>up("produkt",v)}  placeholder="z.B. Tomaten"/>
+      <Field label="Herkunft"         value={form.herkunft} onChange={v=>up("herkunft",v)} placeholder="z.B. Deutschland"/>
+      <Field label="Info (optional)"  value={form.info}     onChange={v=>up("info",v)}     placeholder="z.B. Klasse 1"/>
     </Section>
     <Section title="Anzeige im Kasten">
       <AnzeigePicker value={form.anzeigeTyp} onChange={v=>up("anzeigeTyp",v)}/>
